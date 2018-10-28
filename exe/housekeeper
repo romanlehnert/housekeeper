@@ -1,0 +1,40 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'housekeeper'
+require 'optparse'
+
+options = {}
+
+MANDATORY_ARGUMENTS = %i[action dir age].freeze
+VALID_ACTIONS = %w[archive delete].freeze
+
+parser = OptionParser.new do |parser|
+  parser.on('-a', '--action ACTION', String, 'Action (can be archive or delete)') do |action|
+    options[:action] = action
+  end
+
+  parser.on('-d', '--dir DIRNAME', String, 'Directory to cleanup') do |d|
+    options[:dir] = d
+  end
+
+  parser.on('-m', '--age AGE', Integer, 'The minimum mtime age in seconds of contents to be cleaned up') do |m|
+    options[:age] = m
+  end
+end
+
+begin
+  parser.parse!
+
+  missing = MANDATORY_ARGUMENTS.select { |param| options[param].nil? }
+
+  raise OptionParser::MissingArgument, missing.join(', ') unless missing.empty?
+  raise OptionParser::InvalidArgument, "action must be one of #{VALID_ACTIONS.join(', ')}" unless VALID_ACTIONS.include?(options[:action])
+rescue OptionParser::InvalidOption, OptionParser::MissingArgument, OptionParser::InvalidArgument
+  puts $ERROR_INFO.to_s
+  puts
+  puts parser
+  exit
+end
+
+Housekeeper::Cleaner.new(options[:dir], min_age_seconds: options[:age]).send(options[:action])
